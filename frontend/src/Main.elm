@@ -1,73 +1,89 @@
 module Main exposing (main)
 
 import Browser
-import Html exposing (Html, div, input, button, text)
-import Html.Events exposing (onClick, onInput)
-import Html.Attributes exposing (placeholder)
-import Http
+import Html exposing (Html, div, text)
 import Json.Decode as Decode
-import Json.Encode as Encode
+import Ports exposing (socket)
+import Time exposing (Posix)
+import Websockets exposing (EventPort, CommandPort, EventHandlers)
+
+
+-- MODEL
 
 type alias Model =
-    { name : String
-    , message : String
+    { currentTime : String
+    , connected : Bool
     }
-
-type Msg
-    = UpdateName String
-    | SendRequest
-    | ReceiveResponse (Result Http.Error String)
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { name = "", message = "Enter your name and press Submit." }
-    , Cmd.none
+    ( { currentTime = "Connecting...", connected = False }
+    , socket.open "timeSocket" "ws://127.0.0.1:8080/ws/" []
     )
+
+
+-- MESSAGES
+
+type Msg
+    = SocketOpened
+    | SocketClosed
+    | SocketMessage String
+    | NoOp
+
+
+-- UPDATE
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        UpdateName newName ->
-            ( { model | name = newName }, Cmd.none )
+        SocketOpened ->
+            ( { model | connected = True }, Cmd.none )
 
-        SendRequest ->
-            ( model, sendGreetRequest model.name )
+        SocketClosed ->
+            ( { model | connected = False }, Cmd.none )
 
-        ReceiveResponse (Ok content) ->
-            ( { model | message = content }, Cmd.none )
+        SocketMessage message ->
+            ( { model | currentTime = message }, Cmd.none )
+            -- case Decode.decodeString (Decode.field "time" Decode.string) message of
+            --     Ok timeString ->
+            --         ( { model | currentTime = timeString }, Cmd.none )
 
-        ReceiveResponse (Err _) ->
-            ( { model | message = "Failed to fetch the greeting." }, Cmd.none )
+            --     Err _ ->
+            --         ( { model | currentTime = "Invalid time format" }, Cmd.none )
 
-sendGreetRequest : String -> Cmd Msg
-sendGreetRequest name =
-    let
-        body =
-            Encode.object
-                [ ( "name", Encode.string name ) ]
-    in
-    Http.post
-        { url = "http://127.0.0.1:8080/api/greet"
-        , body = Http.jsonBody body
-        , expect = Http.expectJson ReceiveResponse messageDecoder
-        }
+        NoOp ->
+            ( model, Cmd.none )
 
-messageDecoder : Decode.Decoder String
-messageDecoder =
-    Decode.field "message" Decode.string
+
+-- SUBSCRIPTIONS
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    socket.onEvent
+        (Websockets.EventHandlers
+            (\_ -> Debug.log "SocketOpened" SocketOpened)
+            (\_ -> Debug.log "SocketClosed" SocketClosed)
+            (\_ -> Debug.log "NoOp" NoOp)
+            (\message -> Debug.log "SocketMessage" (SocketMessage message.data))
+            (\_ -> Debug.log "NoOp" NoOp)
+        )
+
+-- VIEW
 
 view : Model -> Html Msg
 view model =
     div []
-        [ input [ onInput UpdateName, Html.Attributes.placeholder "Enter your name" ] []
-        , button [ onClick SendRequest ] [ text "Submit" ]
-        , div [] [ text model.message ]
+        [ text (if model.connected then "Connected" else "Disconnected")
+        , text ("Current Time: " ++ model.currentTime)
         ]
 
+
+-- MAIN
+
+main : Program () Model Msg
 main =
     Browser.element
         { init = init
         , update = update
+        , subscriptions = subscriptions
         , view = view
-        , subscriptions = \_ -> Sub.none
         }

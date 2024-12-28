@@ -16,6 +16,7 @@ all: frontend backend
 frontend:
 	cd $(FRONTEND_DIR) && $(ELM_MAKE) src/Main.elm --output=../$(PUBLIC_DIR)/main.js
 	cp $(FRONTEND_DIR)/index.html $(PUBLIC_DIR)/
+	cp $(FRONTEND_DIR)/src/ports.websocket.js $(PUBLIC_DIR)/
 
 backend:
 	$(CARGO_BUILD) --manifest-path=$(BACKEND_DIR)/Cargo.toml

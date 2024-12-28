@@ -43,13 +43,12 @@ update msg model =
             ( { model | connected = False }, Cmd.none )
 
         SocketMessage message ->
-            ( { model | currentTime = message }, Cmd.none )
-            -- case Decode.decodeString (Decode.field "time" Decode.string) message of
-            --     Ok timeString ->
-            --         ( { model | currentTime = timeString }, Cmd.none )
+            case Decode.decodeString (Decode.field "time" Decode.string) message of
+                Ok timeString ->
+                    ( { model | currentTime = timeString }, Cmd.none )
 
-            --     Err _ ->
-            --         ( { model | currentTime = "Invalid time format" }, Cmd.none )
+                Err _ ->
+                    ( { model | currentTime = "Invalid time format" }, Cmd.none )
 
         NoOp ->
             ( model, Cmd.none )
@@ -72,8 +71,8 @@ subscriptions _ =
 view : Model -> Html Msg
 view model =
     div []
-        [ text (if model.connected then "Connected" else "Disconnected")
-        , text ("Current Time: " ++ model.currentTime)
+        [ text (if model.connected then "Connected\n" else "Disconnected\n")
+        , text ("Current Time: " ++ model.currentTime ++ "\n")
         ]
 
 

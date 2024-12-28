@@ -33,9 +33,7 @@ impl Actor for MyWebSocket {
         info!("WebSocket actor started");
         // Send messages every second
         ctx.run_interval(Duration::from_secs(1), |_, ctx| {
-            info!("Sending time message");
-            let message = format!("{{time: {:?} }}", chrono::Local::now());
-            // let message = "{time : 1234}";
+            let message = format!("{{\"time\" : \"{:?}\" }}", chrono::Local::now());
             ctx.text(message);
         });
         info!("Leaving started");
